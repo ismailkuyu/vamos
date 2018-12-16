@@ -8,7 +8,7 @@ class Lunch {
   // double indicatorValue;
   // int price;
   // String content;
-  DocumentReference rests;
+  List<dynamic> rests;
   // final DocumentReference reference;
 
   // Lunch(
