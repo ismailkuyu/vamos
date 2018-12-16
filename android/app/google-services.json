@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "846416922501",
+    "firebase_url": "https://vamos-34b68.firebaseio.com",
+    "project_id": "vamos-34b68",
+    "storage_bucket": "vamos-34b68.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:846416922501:android:d259d397797cbe8d",
+        "android_client_info": {
+          "package_name": "com.ismailkuyu.vamos"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "846416922501-f9p30l85h149sr6gv3vhdsl2jm4cusfr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSrX24pUXKGTJw-eouu2JiT7McIW29BS0"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
