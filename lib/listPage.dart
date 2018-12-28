@@ -14,13 +14,6 @@ class ListPage extends StatefulWidget {
 }
 
 class _ListPageState extends State<ListPage> {
-  final GlobalKey<FormState> _formKey = new GlobalKey<FormState>();
-
-  // @override
-  // void initState() {
-  //   lunchs = getLunchs();
-  //   super.initState();
-  // }
 
   @override
   Widget build(BuildContext context) {

@@ -1,6 +1,8 @@
 import 'package:vamos/model/lunch.dart';
 import 'package:flutter/material.dart';
+import 'package:vamos/ListPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class LunchPage extends StatelessWidget {
 
@@ -27,7 +29,7 @@ class LunchPage extends StatelessWidget {
     });
   }
 
-  Widget createLunchForm() {
+  Widget createLunchForm(BuildContext context) {
     String lunchName;
     return new Container(
       padding: new EdgeInsets.all(20.0),
@@ -35,28 +37,30 @@ class LunchPage extends StatelessWidget {
         child: new ListView(
           padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
           children: <Widget>[
-            TextFormField(
-              autofocus: false,
-              validator: (value) {
-                if (value.isEmpty) {
-                  return 'Please enter time';
-                }
-                lunchName = value;
-              },
-            ),
-            // new TextField(
-            //   decoration: const InputDecoration(
-            //     labelText: "Name",
-            //   ),
-            //   onChanged: (String value) {
+            // TextFormField(
+            //   // autofocus: false,
+            //   validator: (value) {
+            //     if (value.isEmpty) {
+            //       return 'Please enter time';
+            //     }
             //     lunchName = value;
             //   },
             // ),
+            new TextField(
+              decoration: const InputDecoration(
+                labelText: "Name",
+              ),
+              onChanged: (String value) {
+                lunchName = value;
+              },
+            ),
             new FloatingActionButton.extended(
               label: Text("Finish"),
               icon: Icon(Icons.done),
               onPressed: () {
                 createLunch(lunchName);
+                Navigator.push(
+                  context, MaterialPageRoute(builder: (context) => ListPage()));
               },
             )
           ],
@@ -72,7 +76,7 @@ class LunchPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Color.fromRGBO(58, 66, 86, 1.0),
-      body: createLunchForm(),
+      body: createLunchForm(context),
       // body: Column(
       //   children: [
       //     TextFormField(
