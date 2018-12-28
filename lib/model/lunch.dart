@@ -18,8 +18,8 @@ class Lunch {
 
       
   Lunch.fromMap(Map<String, dynamic> map)//, {this.reference})
-     : assert(map['name'] != null),
-       name = map['name'],
+    //  : assert(map['name'] != null),
+       :name = map['name'],
        rests = map['rests'],
        time = map['time'];
 

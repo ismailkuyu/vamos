@@ -2,94 +2,112 @@ import 'package:vamos/model/lunch.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class DetailPage extends StatelessWidget {
-  final Lunch lunch;
+class LunchPage extends StatelessWidget {
 
-  DetailPage({Key key, this.lunch}) : super(key: key);
-  @override
-  Widget build(BuildContext context) {
+  Future<Lunch> createLunch(String name) async {
+    Firestore db = Firestore.instance;
 
-    Future<Lunch> createLunch(String name) async {
-            
-      Firestore db = Firestore.instance;
+    final TransactionHandler createTransaction = (Transaction tx) async {
+      final DocumentSnapshot ds =
+          await tx.get(db.collection('lunch_coll').document());
 
-      final TransactionHandler createTransaction = (Transaction tx) async {
-        final DocumentSnapshot ds = await tx.get(db.collection('lunch_coll').document());
-    
-        var dataMap = new Map<String, dynamic>();
-        dataMap['name'] = name;
-    
-        await tx.set(ds.reference, dataMap);
-    
-        return dataMap;
-      };
-    
-      return Firestore.instance.runTransaction(createTransaction).then((mapData) {
-        return Lunch.fromMap(mapData);
-      }).catchError((error) {
-        print('error: $error');
-        return null;
-      });
-    }
-      
-    Card makeCard(String lunchName, String restName) => Card(
-          elevation: 8.0,
-          margin: new EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-          child: Container(
-            decoration: BoxDecoration(color: Color.fromRGBO(64, 75, 96, .9)),
-            child: new ListTile(
-              contentPadding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-              title: Text(restName, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            )
-          ),
-      );
+      var dataMap = new Map<String, dynamic>();
+      dataMap['name'] = name;
 
-      return Scaffold(
-        backgroundColor: Color.fromRGBO(58, 66, 86, 1.0),
-        body: Column(
-          children: [
-            new Text(lunch.name),
-            ListView.builder(
-              itemCount: lunch.rests.length,
-              itemBuilder: (BuildContext context, int index) {
-                return new Container(
-                  padding: const EdgeInsets.all(20.0),
-                  // decoration: new BoxDecoration(
-                  //   border: new Border.all(color: Colors.white),
-                  //   borderRadius: BorderRadius.circular(5.0)),
-                  child: makeCard(lunch.name, lunch.rests[index]) 
-                );
-              }
+      await tx.set(ds.reference, dataMap);
+
+      return dataMap;
+    };
+
+    return Firestore.instance.runTransaction(createTransaction).then((mapData) {
+      return Lunch.fromMap(mapData);
+    }).catchError((error) {
+      print('error: $error');
+      return null;
+    });
+  }
+
+  Widget createLunchForm() {
+    String lunchName;
+    return new Container(
+      padding: new EdgeInsets.all(20.0),
+      child: new Form(
+        child: new ListView(
+          padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+          children: <Widget>[
+            TextFormField(
+              autofocus: false,
+              validator: (value) {
+                if (value.isEmpty) {
+                  return 'Please enter time';
+                }
+                lunchName = value;
+              },
             ),
+            // new TextField(
+            //   decoration: const InputDecoration(
+            //     labelText: "Name",
+            //   ),
+            //   onChanged: (String value) {
+            //     lunchName = value;
+            //   },
+            // ),
+            new FloatingActionButton.extended(
+              label: Text("Finish"),
+              icon: Icon(Icons.done),
+              onPressed: () {
+                createLunch(lunchName);
+              },
+            )
           ],
         ),
+      ),
+    );
+  }
 
-        floatingActionButton: 
-          new FloatingActionButton.extended(
-            label: Text("Finish"),
-            icon: Icon(Icons.done),
-            onPressed: (){
-              createLunch(lunch.name);
-            },
-          ),
-      );
+  @override
+  Widget build(BuildContext context) {
+    Lunch lunch = new Lunch();
+    lunch.name = "Name";
 
-      // return new ListView.builder(
-      //   itemCount: lunch.rests.length,
-      //   itemBuilder: (BuildContext context, int index) {
-      //     return new Container(
-      //       padding: const EdgeInsets.all(20.0),
-      //       decoration: new BoxDecoration(
-      //         border: new Border.all(color: Colors.white),
-      //         borderRadius: BorderRadius.circular(5.0)),
-      //       child: makeCard(lunch.name, lunch.rests[index]) 
-      //     );
-      //   }
-      // );
+    return Scaffold(
+      backgroundColor: Color.fromRGBO(58, 66, 86, 1.0),
+      body: createLunchForm(),
+      // body: Column(
+      //   children: [
+      //     TextFormField(
+      //       validator: (value) {
+      //         if (value.isEmpty) {
+      //           return 'Please enter time';
+      //         }
+      //         lunch.name = value;
+      //       },
+      //     ),
+      //   ],
+      // ),
+      // floatingActionButton: new FloatingActionButton.extended(
+      //   label: Text("Finish"),
+      //   icon: Icon(Icons.done),
+      //   onPressed: () {
+      //     createLunch(lunch.name);
+      //   },
+      // ),
+    );
 
+    // return new ListView.builder(
+    //   itemCount: lunch.rests.length,
+    //   itemBuilder: (BuildContext context, int index) {
+    //     return new Container(
+    //       padding: const EdgeInsets.all(20.0),
+    //       decoration: new BoxDecoration(
+    //         border: new Border.all(color: Colors.white),
+    //         borderRadius: BorderRadius.circular(5.0)),
+    //       child: makeCard(lunch.name, lunch.rests[index])
+    //     );
+    //   }
+    // );
   }
 }
-
 
 // class DetailPage extends StatelessWidget {
 //   final Lunch lunch;
