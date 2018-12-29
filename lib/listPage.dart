@@ -1,6 +1,5 @@
 import 'package:vamos/model/lunch.dart';
 import 'package:flutter/material.dart';
-import 'package:vamos/model/user.dart';
 import 'package:vamos/LunchPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -12,29 +11,77 @@ class ListPage extends StatefulWidget {
   final String title;
 
   @override
-  _ListPageState createState() => _ListPageState();
+  _ListPageState createState() {
+    return _ListPageState();
+  }
 }
 
 class _ListPageState extends State<ListPage> {
-  Firestore db = Firestore.instance;
-  Lunch votedLunch;
 
-  createUser() async {
+  static Firestore db = Firestore.instance;
+  static Lunch votedLunch;
+  
+  @override
+  void initState() {
+    validateUser();
+    Future<Lunch> fLunch = getInitialLunch();
+    fLunch.then((Lunch l) => votedLunch = l);
+    super.initState();
+  }
+
+  toggleSelection(Lunch lunch) {
+    setState(() {
+      if (votedLunch == null) {
+        lunch.vote++;
+        updateLunch(lunch);
+        votedLunch = lunch;
+      } else if (votedLunch.id != lunch.id) {
+        votedLunch.vote--;
+        updateLunch(votedLunch);
+        lunch.vote++;
+        updateLunch(lunch);
+        votedLunch = lunch;
+      } else if (votedLunch.id == lunch.id) {
+        lunch.vote--;
+        updateLunch(lunch);
+        votedLunch = null;
+      }
+    });
+  }
+
+  static validateUser() async {
+    String deviceId = await DeviceId.getID;
+    DocumentReference userRef = db.collection('user').document(deviceId);
+    userRef.get().then((docSnapshot) {
+      if (!docSnapshot.exists) {
+        var dataMap = new Map<String, dynamic>();
+        dataMap['id'] = deviceId;
+        dataMap['lunch_id'] = "not selected";
+        userRef.setData(dataMap);
+        return null;
+      }
+    });
+  }
+
+  static Future<Lunch> getInitialLunch() async {
     String deviceId = await DeviceId.getID;
 
     DocumentReference userRef = db.collection('user').document(deviceId);
 
-    userRef.get()
-      .then((docSnapshot) {
-        if (!docSnapshot.exists) {
-          var dataMap = new Map<String, dynamic>();
-          dataMap['id'] = deviceId;
-          dataMap['lunch_id'] = "";
-          userRef.setData(dataMap); // create the document
-        }
+    userRef.get().then((userDS) {
+      if (userDS.exists) {
+        DocumentReference lunchRef = db.collection('lunch').document(userDS.data['lunch_id']);
+        lunchRef.get().then((lunchDS) {
+          if (lunchDS.exists) {
+            var dataMap = lunchDS.data;
+            return Lunch.fromMap(dataMap);
+          }
+        });
+      }
     });
-  }
 
+    return null;
+  }
 
   Future<dynamic> getLunch(String id) async {
     final TransactionHandler getTransaction = (Transaction tx) async {
@@ -55,10 +102,15 @@ class _ListPageState extends State<ListPage> {
 
   Future<dynamic> updateLunch(Lunch lunch) async {
     final TransactionHandler updateTransaction = (Transaction tx) async {
-      final DocumentSnapshot ds =
+      final DocumentSnapshot dsLunch =
           await tx.get(db.collection('lunch').document(lunch.id));
+      final DocumentSnapshot dsUser =
+          await tx.get(db.collection('user').document(await DeviceId.getID));
+      var dataUser = dsUser.data;
+      dataUser['lunch_id'] = lunch.id;
 
-      await tx.update(ds.reference, lunch.toMap());
+      await tx.update(dsLunch.reference, lunch.toMap());
+      await tx.update(dsUser.reference, dataUser);
       return {'updated': true};
     };
 
@@ -71,7 +123,6 @@ class _ListPageState extends State<ListPage> {
     });
   }
 
-    
   // Future<dynamic> updateUser(String lunchId) async {
   //   String deviceId = await DeviceId.getID;
   //   final TransactionHandler updateTransaction = (Transaction tx) async {
@@ -95,7 +146,6 @@ class _ListPageState extends State<ListPage> {
 
   @override
   Widget build(BuildContext context) {
-    createUser();
     DateTime now = DateTime.now();
     String formattedDate = DateFormat('EEEE, dd MMM yyyy').format(now);
     final topAppBar = AppBar(
@@ -109,16 +159,37 @@ class _ListPageState extends State<ListPage> {
     }
 
     Color getColor(Lunch lunch) {
-      Color c;
-      if (votedLunch == null){
-        c = Color.fromRGBO(64, 75, 96, .9);
-      } else if (votedLunch.id == lunch.id) {
+      Color c = Color.fromRGBO(64, 75, 96, .9);
+      if (votedLunch != null && votedLunch.id == lunch.id) {
         c = Colors.orange;
-      } else {
-        c = Color.fromRGBO(64, 75, 96, .9);
       }
-
       return c;
+    }
+
+    // updateSelection(Lunch lunch) {
+    //   if (votedLunch == null) {
+    //     lunch.vote++;
+    //     updateLunch(lunch);
+    //     votedLunch = lunch;
+    //   } else if (votedLunch.id != lunch.id) {
+    //     votedLunch.vote--;
+    //     updateLunch(votedLunch);
+    //     lunch.vote++;
+    //     updateLunch(lunch);
+    //     votedLunch = lunch;
+    //   } else if (votedLunch.id == lunch.id) {
+    //     lunch.vote--;
+    //     updateLunch(lunch);
+    //     votedLunch = null;
+    //   }
+    // }
+
+    bool isSelected(Lunch lunch) {
+      if (votedLunch != null && votedLunch.id == lunch.id) {
+        return true;
+      } else {
+        return false;
+      }
     }
 
     Widget _buildListItem(BuildContext context, DocumentSnapshot data) {
@@ -135,54 +206,46 @@ class _ListPageState extends State<ListPage> {
             color: getColor(lunch),
           ),
           child: ListTile(
-              title: Text(
-                  getFormatted(date.hour) + ":" + getFormatted(date.minute),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  )),
-              trailing: Text("Votes: " + lunch.vote.toString(),
-                  style: TextStyle(
-                    color: Colors.white,
-                  )),
-              onTap: () {
-                if (votedLunch.id != lunch.id) {
-                  votedLunch.vote--;
-                  updateLunch(votedLunch);
-                }
-                lunch.vote++;
-                updateLunch(lunch);
-                votedLunch = lunch;
-                // updateUser(lunch.id);
-              }
-              //   Navigator.push(
-              //       context,
-              //       MaterialPageRoute(
-              //           builder: (context) => DetailPage(lunch: lunch)));
-              // }
+            selected: isSelected(lunch),
+            title:
+                Text(getFormatted(date.hour) + ":" + getFormatted(date.minute),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    )),
+            trailing: Text("Votes: " + lunch.vote.toString(),
+                style: TextStyle(
+                  color: Colors.white,
+                )),
+            onTap: () => toggleSelection(lunch),
+            //   Navigator.push(
+            //       context,
+            //       MaterialPageRoute(
+            //           builder: (context) => DetailPage(lunch: lunch)));
+            // }
 
-              // subtitle: getRests(lunch.rests),
-              // subtitle: makeList(lunch.rests),
-              // children: getRests(lunch.rests)
-              // children: <Widget>[
-              // Expanded(
-              //     flex: 1,
-              //     child: Container(
-              //       // tag: 'hero',
-              //       child: LinearProgressIndicator(
-              //           backgroundColor: Color.fromRGBO(209, 224, 224, 0.2),
-              //           value: 1,
-              //           valueColor: AlwaysStoppedAnimation(Colors.green)),
-              //     )),
-              // Expanded(
-              //   flex: 4,
-              //   child: Padding(
-              //       padding: EdgeInsets.only(left: 10.0),
-              //       child: Text(lunch.name.toString(),
-              //           style: TextStyle(color: Colors.white))),
-              // )
-              // ],
-              ),
+            // subtitle: getRests(lunch.rests),
+            // subtitle: makeList(lunch.rests),
+            // children: getRests(lunch.rests)
+            // children: <Widget>[
+            // Expanded(
+            //     flex: 1,
+            //     child: Container(
+            //       // tag: 'hero',
+            //       child: LinearProgressIndicator(
+            //           backgroundColor: Color.fromRGBO(209, 224, 224, 0.2),
+            //           value: 1,
+            //           valueColor: AlwaysStoppedAnimation(Colors.green)),
+            //     )),
+            // Expanded(
+            //   flex: 4,
+            //   child: Padding(
+            //       padding: EdgeInsets.only(left: 10.0),
+            //       child: Text(lunch.name.toString(),
+            //           style: TextStyle(color: Colors.white))),
+            // )
+            // ],
+          ),
           // trailing: Text(lunch.rests.toString()),
           //   onTap: () => print(lunch),
           // ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:vamos/listPage.dart';
-
+import 'package:vamos/model/lunch.dart';
+import 'package:device_id/device_id.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Dashboard extends StatefulWidget {
   @override
@@ -8,6 +10,29 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
+  
+  static Firestore db2 = Firestore.instance;
+  static Future<Lunch> getInitialLunch() async {
+    String deviceId = await DeviceId.getID;
+
+    DocumentReference userRef = db2.collection('user').document(deviceId);
+
+    userRef.get().then((userDS) {
+      if (userDS.exists) {
+        DocumentReference lunchRef =
+            db2.collection('lunch').document(userDS.data['lunch_id']);
+        lunchRef.get().then((lunchDS) {
+          if (lunchDS.exists) {
+            var dataMap = lunchDS.data;
+            return Lunch.fromMap(dataMap);
+          }
+        });
+      }
+    });
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,11 +66,23 @@ class _DashboardState extends State<Dashboard> {
         child: Container(
           decoration: BoxDecoration(color: Color.fromRGBO(220, 220, 220, 1.0)),
           child: new InkWell(
-            onTap: () {Navigator.push(
+            onTap: () {
+              Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (context) => ListPage(title: title)));
-                },
+                MaterialPageRoute(builder: (context) {
+                  String lunchId;
+                  Future<Lunch> fLunch = getInitialLunch();
+                  fLunch.then((Lunch l) {
+                    if(l != null){
+                      lunchId = l.id;
+                    } else{
+                      lunchId = "not selected";
+                    }
+                    });
+                  return ListPage(title: lunchId);
+                }),
+              );
+            },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
@@ -67,8 +104,6 @@ class _DashboardState extends State<Dashboard> {
               ],
             ),
           ),
-        )
-      );
-    }
-
+        ));
+  }
 }
