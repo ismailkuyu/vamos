@@ -28,7 +28,6 @@ class _DashboardState extends State<Dashboard> {
           }
         });
       }
-      
     });
 
     return null;
