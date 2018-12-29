@@ -1,20 +1,25 @@
+import 'package:intl/intl.dart';
 import 'package:vamos/model/lunch.dart';
 import 'package:flutter/material.dart';
 import 'package:vamos/ListPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:datetime_picker_formfield/datetime_picker_formfield.dart';
 
 
 class LunchPage extends StatelessWidget {
+  final dateFormat = DateFormat("MMMM d, 'at' hh:ma");
+  final Firestore db = Firestore.instance;
 
-  Future<Lunch> createLunch(String name) async {
-    Firestore db = Firestore.instance;
+  Future<Lunch> createLunch(DateTime date) async {
 
     final TransactionHandler createTransaction = (Transaction tx) async {
       final DocumentSnapshot ds =
-          await tx.get(db.collection('lunch_coll').document());
+          await tx.get(db.collection('lunch').document());
 
       var dataMap = new Map<String, dynamic>();
-      dataMap['name'] = name;
+      dataMap['id'] = ds.documentID;
+      dataMap['date'] = date;
+      dataMap['vote'] = 0;
 
       await tx.set(ds.reference, dataMap);
 
@@ -30,7 +35,7 @@ class LunchPage extends StatelessWidget {
   }
 
   Widget createLunchForm(BuildContext context) {
-    String lunchName;
+    DateTime date;
     return new Container(
       padding: new EdgeInsets.all(20.0),
       child: new Form(
@@ -46,21 +51,32 @@ class LunchPage extends StatelessWidget {
             //     lunchName = value;
             //   },
             // ),
-            new TextField(
-              decoration: const InputDecoration(
-                labelText: "Name",
-              ),
-              onChanged: (String value) {
-                lunchName = value;
+            new DateTimePickerFormField(
+              format: dateFormat,
+              decoration: InputDecoration(labelText: 'Date/Time', labelStyle: TextStyle(color: Colors.white)),
+              onChanged: (DateTime value) {
+                date = value;
               },
             ),
+            SizedBox(height: 16.0),
+
+            // new TextField(
+            //   decoration: const InputDecoration(
+            //     labelText: "Date",
+            //   ),
+            //   onChanged: (String value) {
+            //     lunchName = value;
+            //   },
+            // ),
             new FloatingActionButton.extended(
               label: Text("Finish"),
               icon: Icon(Icons.done),
               onPressed: () {
-                createLunch(lunchName);
-                Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => ListPage()));
+                Future<Lunch> lunch = createLunch(date);
+                lunch.then((l) {
+                  Navigator.push(
+                    context, MaterialPageRoute(builder: (context) => ListPage(title: l.id)));
+                });
               },
             )
           ],
@@ -71,8 +87,6 @@ class LunchPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Lunch lunch = new Lunch();
-    lunch.name = "Name";
 
     return Scaffold(
       backgroundColor: Color.fromRGBO(58, 66, 86, 1.0),

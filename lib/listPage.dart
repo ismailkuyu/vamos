@@ -1,8 +1,10 @@
 import 'package:vamos/model/lunch.dart';
 import 'package:flutter/material.dart';
-import 'package:vamos/detailLunch.dart';
+import 'package:vamos/model/user.dart';
 import 'package:vamos/LunchPage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:device_id/device_id.dart';
 
 class ListPage extends StatefulWidget {
   ListPage({Key key, this.title}) : super(key: key);
@@ -14,107 +16,150 @@ class ListPage extends StatefulWidget {
 }
 
 class _ListPageState extends State<ListPage> {
+  Firestore db = Firestore.instance;
+  Lunch votedLunch;
+
+  createUser() async {
+    String deviceId = await DeviceId.getID;
+
+    DocumentReference userRef = db.collection('user').document(deviceId);
+
+    userRef.get()
+      .then((docSnapshot) {
+        if (!docSnapshot.exists) {
+          var dataMap = new Map<String, dynamic>();
+          dataMap['id'] = deviceId;
+          dataMap['lunch_id'] = "";
+          userRef.setData(dataMap); // create the document
+        }
+    });
+  }
+
+
+  Future<dynamic> getLunch(String id) async {
+    final TransactionHandler getTransaction = (Transaction tx) async {
+      final DocumentSnapshot ds =
+          await tx.get(db.collection('lunch').document(id));
+
+      return ds;
+    };
+
+    return Firestore.instance
+        .runTransaction(getTransaction)
+        .then((result) => votedLunch)
+        .catchError((error) {
+      print('error: $error');
+      return false;
+    });
+  }
+
+  Future<dynamic> updateLunch(Lunch lunch) async {
+    final TransactionHandler updateTransaction = (Transaction tx) async {
+      final DocumentSnapshot ds =
+          await tx.get(db.collection('lunch').document(lunch.id));
+
+      await tx.update(ds.reference, lunch.toMap());
+      return {'updated': true};
+    };
+
+    return Firestore.instance
+        .runTransaction(updateTransaction)
+        .then((result) => result['updated'])
+        .catchError((error) {
+      print('error: $error');
+      return false;
+    });
+  }
+
+    
+  // Future<dynamic> updateUser(String lunchId) async {
+  //   String deviceId = await DeviceId.getID;
+  //   final TransactionHandler updateTransaction = (Transaction tx) async {
+  //     final DocumentSnapshot ds =
+  //         await tx.get(db.collection('user').document(deviceId));
+
+  //     ds.data.update
+
+  //     await tx.update(ds.reference, lunch.toMap());
+  //     return {'updated': true};
+  //   };
+
+  //   return Firestore.instance
+  //       .runTransaction(updateTransaction)
+  //       .then((result) => result['updated'])
+  //       .catchError((error) {
+  //     print('error: $error');
+  //     return false;
+  //   });
+  // }
 
   @override
   Widget build(BuildContext context) {
-    // final topAppBar = AppBar(
-    //   elevation: 0.1,
-    //   backgroundColor: Color.fromRGBO(58, 66, 86, 1.0),
-    //   title: Text(widget.title),
-    //   actions: <Widget>[
-    //     IconButton(
-    //       icon: Icon(Icons.list),
-    //       onPressed: () {},
-    //     )
-    //   ],
-    // );
+    createUser();
+    DateTime now = DateTime.now();
+    String formattedDate = DateFormat('EEEE, dd MMM yyyy').format(now);
+    final topAppBar = AppBar(
+      elevation: 0.1,
+      backgroundColor: Color.fromRGBO(58, 66, 86, 1.0),
+      title: Text(formattedDate),
+    );
 
-    // Container makeList(List<dynamic> rests) => Container(
-    //   // decoration: BoxDecoration(color: Color.fromRGBO(58, 66, 86, 1.0)),
-    //   child: ListView.builder(
-    //     scrollDirection: Axis.horizontal,
-    //     // shrinkWrap: true,
-    //     itemCount: rests.length,
-    //     itemBuilder: (BuildContext context, int index) {
-    //       return makeCard(rests[index]);
-    //     },
-    //   ),
-    // );
-
-    Future<Lunch> createLunch(String name) async {
-      Firestore db = Firestore.instance;
-
-      final TransactionHandler createTransaction = (Transaction tx) async {
-        final DocumentSnapshot ds =
-            await tx.get(db.collection('lunch_coll').document());
-
-        var dataMap = new Map<String, dynamic>();
-        dataMap['name'] = name;
-
-        await tx.set(ds.reference, dataMap);
-
-        return dataMap;
-      };
-
-      return Firestore.instance
-          .runTransaction(createTransaction)
-          .then((mapData) {
-        return Lunch.fromMap(mapData);
-      }).catchError((error) {
-        print('error: $error');
-        return null;
-      });
+    String getFormatted(int n) {
+      return n < 10 ? "0" + n.toString() : n.toString();
     }
 
-    Container getRests(List<dynamic> rests) => new Container(
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            shrinkWrap: true,
-            itemCount: rests.length,
-            itemBuilder: (BuildContext context, int index) {
-              return new Card(
-                elevation: 8.0,
-                margin:
-                    new EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-                child: Container(
-                    decoration:
-                        BoxDecoration(color: Color.fromRGBO(64, 75, 96, .9)),
-                    child: new ListTile(
-                      contentPadding: EdgeInsets.symmetric(
-                          horizontal: 20.0, vertical: 10.0),
-                      title: Text(rests[index].toString(),
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
-                    )),
-              );
-            },
-          ),
-        );
+    Color getColor(Lunch lunch) {
+      Color c;
+      if (votedLunch == null){
+        c = Color.fromRGBO(64, 75, 96, .9);
+      } else if (votedLunch.id == lunch.id) {
+        c = Colors.orange;
+      } else {
+        c = Color.fromRGBO(64, 75, 96, .9);
+      }
+
+      return c;
+    }
 
     Widget _buildListItem(BuildContext context, DocumentSnapshot data) {
       final lunch = Lunch.fromSnapshot(data);
+      DateTime date = lunch.date;
 
       return Padding(
-        key: ValueKey(lunch.name),
+        key: ValueKey(lunch.date),
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey),
             borderRadius: BorderRadius.circular(5.0),
+            color: getColor(lunch),
           ),
           child: ListTile(
-              title: Text(lunch.name,
+              title: Text(
+                  getFormatted(date.hour) + ":" + getFormatted(date.minute),
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   )),
+              trailing: Text("Votes: " + lunch.vote.toString(),
+                  style: TextStyle(
+                    color: Colors.white,
+                  )),
               onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => DetailPage(lunch: lunch)));
+                if (votedLunch.id != lunch.id) {
+                  votedLunch.vote--;
+                  updateLunch(votedLunch);
+                }
+                lunch.vote++;
+                updateLunch(lunch);
+                votedLunch = lunch;
+                // updateUser(lunch.id);
               }
+              //   Navigator.push(
+              //       context,
+              //       MaterialPageRoute(
+              //           builder: (context) => DetailPage(lunch: lunch)));
+              // }
 
               // subtitle: getRests(lunch.rests),
               // subtitle: makeList(lunch.rests),
@@ -156,7 +201,11 @@ class _ListPageState extends State<ListPage> {
 
     Widget _buildBody(BuildContext context) {
       return StreamBuilder<QuerySnapshot>(
-        stream: Firestore.instance.collection('lunch_coll').snapshots(),
+        stream: Firestore.instance
+            .collection('lunch')
+            .orderBy("date")
+            .where("date", isGreaterThanOrEqualTo: DateTime.now())
+            .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return LinearProgressIndicator();
 
@@ -195,7 +244,8 @@ class _ListPageState extends State<ListPage> {
 
     return Scaffold(
       backgroundColor: Color.fromRGBO(58, 66, 86, 1.0),
-      // appBar: topAppBar,
+      appBar: topAppBar,
+
       body: _buildBody(context),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -209,68 +259,3 @@ class _ListPageState extends State<ListPage> {
     );
   }
 }
-
-// List getLunchList(BuildContext context){
-//   return StreamBuilder<QuerySnapshot>(
-//     stream: Firestore.instance.collection('lunch').snapshots(),
-//     builder: (context, snapshot) {
-//       if (!snapshot.hasData) return LinearProgressIndicator();
-
-//       return _buildList(context, snapshot.data.documents);
-//     },
-//  );
-// }
-
-// List getLunchs() {
-//   return [
-//     Lunch(
-//         title: "Introduction to Driving",
-//         level: "Beginner",
-//         indicatorValue: 0.33,
-//         price: 20,
-//         content:
-//             "Start by taking a couple of minutes to read the info in this section. Launch your app and click on the Settings menu.  While on the settings page, click the Save button.  You should see a circular progress indicator display in the middle of the page and the user interface elements cannot be clicked due to the modal barrier that is constructed."),
-//     Lunch(
-//         title: "Observation at Junctions",
-//         level: "Beginner",
-//         indicatorValue: 0.33,
-//         price: 50,
-//         content:
-//             "Start by taking a couple of minutes to read the info in this section. Launch your app and click on the Settings menu.  While on the settings page, click the Save button.  You should see a circular progress indicator display in the middle of the page and the user interface elements cannot be clicked due to the modal barrier that is constructed."),
-//     Lunch(
-//         title: "Reverse parallel Parking",
-//         level: "Intermidiate",
-//         indicatorValue: 0.66,
-//         price: 30,
-//         content:
-//             "Start by taking a couple of minutes to read the info in this section. Launch your app and click on the Settings menu.  While on the settings page, click the Save button.  You should see a circular progress indicator display in the middle of the page and the user interface elements cannot be clicked due to the modal barrier that is constructed."),
-//     Lunch(
-//         title: "Reversing around the corner",
-//         level: "Intermidiate",
-//         indicatorValue: 0.66,
-//         price: 30,
-//         content:
-//             "Start by taking a couple of minutes to read the info in this section. Launch your app and click on the Settings menu.  While on the settings page, click the Save button.  You should see a circular progress indicator display in the middle of the page and the user interface elements cannot be clicked due to the modal barrier that is constructed."),
-//     Lunch(
-//         title: "Incorrect Use of Signal",
-//         level: "Advanced",
-//         indicatorValue: 1.0,
-//         price: 50,
-//         content:
-//             "Start by taking a couple of minutes to read the info in this section. Launch your app and click on the Settings menu.  While on the settings page, click the Save button.  You should see a circular progress indicator display in the middle of the page and the user interface elements cannot be clicked due to the modal barrier that is constructed."),
-//     Lunch(
-//         title: "Engine Challenges",
-//         level: "Advanced",
-//         indicatorValue: 1.0,
-//         price: 50,
-//         content:
-//             "Start by taking a couple of minutes to read the info in this section. Launch your app and click on the Settings menu.  While on the settings page, click the Save button.  You should see a circular progress indicator display in the middle of the page and the user interface elements cannot be clicked due to the modal barrier that is constructed."),
-//     Lunch(
-//         title: "Self Driving Car",
-//         level: "Advanced",
-//         indicatorValue: 1.0,
-//         price: 50,
-//         content:
-//             "Start by taking a couple of minutes to read the info in this section. Launch your app and click on the Settings menu.  While on the settings page, click the Save button.  You should see a circular progress indicator display in the middle of the page and the user interface elements cannot be clicked due to the modal barrier that is constructed.  ")
-//   ];
-// }
