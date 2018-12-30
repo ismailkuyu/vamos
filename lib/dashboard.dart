@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vamos/listPage.dart';
 import 'package:vamos/model/lunch.dart';
-import 'package:device_id/device_id.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vamos/service/FirestoreService.dart';
 
 class Dashboard extends StatefulWidget {
   @override
@@ -11,27 +10,6 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> {
   
-  static Firestore db2 = Firestore.instance;
-  static Future<Lunch> getInitialLunch() async {
-    String deviceId = await DeviceId.getID;
-
-    DocumentReference userRef = db2.collection('user').document(deviceId);
-
-    userRef.get().then((userDS) {
-      if (userDS.exists) {
-        DocumentReference lunchRef =
-            db2.collection('lunch').document(userDS.data['lunch_id']);
-        lunchRef.get().then((lunchDS) {
-          if (lunchDS.exists) {
-            var dataMap = lunchDS.data;
-            return Lunch.fromMap(dataMap);
-          }
-        });
-      }
-    });
-
-    return null;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +49,7 @@ class _DashboardState extends State<Dashboard> {
                 context,
                 MaterialPageRoute(builder: (context) {
                   String lunchId;
-                  Future<Lunch> fLunch = getInitialLunch();
+                  Future<Lunch> fLunch = FirestoreService.getInitialLunch();
                   fLunch.then((Lunch l) {
                     if(l != null){
                       lunchId = l.id;

@@ -1,9 +1,9 @@
 import 'package:vamos/model/lunch.dart';
 import 'package:flutter/material.dart';
 import 'package:vamos/LunchPage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:device_id/device_id.dart';
+import 'package:vamos/service/FirestoreService.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ListPage extends StatefulWidget {
   ListPage({Key key, this.title}) : super(key: key);
@@ -18,13 +18,12 @@ class ListPage extends StatefulWidget {
 
 class _ListPageState extends State<ListPage> {
 
-  static Firestore db = Firestore.instance;
   static Lunch votedLunch;
   
   @override
   void initState() {
-    validateUser();
-    Future<Lunch> fLunch = getInitialLunch();
+    FirestoreService.validateUser();
+    Future<Lunch> fLunch = FirestoreService.getInitialLunch();
     fLunch.then((Lunch l) => votedLunch = l);
     super.initState();
   }
@@ -33,95 +32,24 @@ class _ListPageState extends State<ListPage> {
     setState(() {
       if (votedLunch == null) {
         lunch.vote++;
-        updateLunch(lunch);
+        FirestoreService.updateLunch(lunch);
         votedLunch = lunch;
       } else if (votedLunch.id != lunch.id) {
         votedLunch.vote--;
-        updateLunch(votedLunch);
+        FirestoreService.updateLunch(votedLunch);
         lunch.vote++;
-        updateLunch(lunch);
+        FirestoreService.updateLunch(lunch);
         votedLunch = lunch;
       } else if (votedLunch.id == lunch.id) {
         lunch.vote--;
-        updateLunch(lunch);
+        FirestoreService.updateLunch(lunch);
         votedLunch = null;
       }
     });
   }
 
-  static validateUser() async {
-    String deviceId = await DeviceId.getID;
-    DocumentReference userRef = db.collection('user').document(deviceId);
-    userRef.get().then((docSnapshot) {
-      if (!docSnapshot.exists) {
-        var dataMap = new Map<String, dynamic>();
-        dataMap['id'] = deviceId;
-        dataMap['lunch_id'] = "not selected";
-        userRef.setData(dataMap);
-        return null;
-      }
-    });
-  }
 
-  static Future<Lunch> getInitialLunch() async {
-    String deviceId = await DeviceId.getID;
 
-    DocumentReference userRef = db.collection('user').document(deviceId);
-
-    userRef.get().then((userDS) {
-      if (userDS.exists) {
-        DocumentReference lunchRef = db.collection('lunch').document(userDS.data['lunch_id']);
-        lunchRef.get().then((lunchDS) {
-          if (lunchDS.exists) {
-            var dataMap = lunchDS.data;
-            return Lunch.fromMap(dataMap);
-          }
-        });
-      }
-    });
-
-    return null;
-  }
-
-  Future<dynamic> getLunch(String id) async {
-    final TransactionHandler getTransaction = (Transaction tx) async {
-      final DocumentSnapshot ds =
-          await tx.get(db.collection('lunch').document(id));
-
-      return ds;
-    };
-
-    return Firestore.instance
-        .runTransaction(getTransaction)
-        .then((result) => votedLunch)
-        .catchError((error) {
-      print('error: $error');
-      return false;
-    });
-  }
-
-  Future<dynamic> updateLunch(Lunch lunch) async {
-    final TransactionHandler updateTransaction = (Transaction tx) async {
-      final DocumentSnapshot dsLunch =
-          await tx.get(db.collection('lunch').document(lunch.id));
-      final DocumentSnapshot dsUser =
-          await tx.get(db.collection('user').document(await DeviceId.getID));
-      var dataUser = dsUser.data;
-      dataUser['lunch_id'] = lunch.id;
-
-      await tx.update(dsLunch.reference, lunch.toMap());
-      await tx.update(dsUser.reference, dataUser);
-      return {'updated': true};
-    };
-
-    return Firestore.instance
-        .runTransaction(updateTransaction)
-        .then((result) => result['updated'])
-        .catchError((error) {
-      print('error: $error');
-      return false;
-    });
-  }
 
   // Future<dynamic> updateUser(String lunchId) async {
   //   String deviceId = await DeviceId.getID;
@@ -263,12 +191,9 @@ class _ListPageState extends State<ListPage> {
     }
 
     Widget _buildBody(BuildContext context) {
+      Stream stream = FirestoreService.getBodyStream();
       return StreamBuilder<QuerySnapshot>(
-        stream: Firestore.instance
-            .collection('lunch')
-            .orderBy("date")
-            .where("date", isGreaterThanOrEqualTo: DateTime.now())
-            .snapshots(),
+        stream: stream,
         builder: (context, snapshot) {
           if (!snapshot.hasData) return LinearProgressIndicator();
 
