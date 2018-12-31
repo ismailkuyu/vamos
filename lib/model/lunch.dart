@@ -4,7 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Lunch {
   String id;
   DateTime date;
-  num vote;
+  num vote = 0;
+
   Lunch({this.id, this.date, this.vote});
       
   Lunch.fromMap(Map<String, dynamic> map)

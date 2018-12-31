@@ -1,40 +1,16 @@
 import 'package:intl/intl.dart';
-import 'package:vamos/model/lunch.dart';
 import 'package:flutter/material.dart';
 import 'package:vamos/ListPage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:datetime_picker_formfield/datetime_picker_formfield.dart';
+import 'package:vamos/stateContainer.dart';
+import 'package:vamos/model/lunch.dart';
 
 
 class LunchPage extends StatelessWidget {
   final dateFormat = DateFormat("MMMM d, 'at' hh:ma");
-  final Firestore db = Firestore.instance;
-
-  Future<Lunch> createLunch(DateTime date) async {
-
-    final TransactionHandler createTransaction = (Transaction tx) async {
-      final DocumentSnapshot ds =
-          await tx.get(db.collection('lunch').document());
-
-      var dataMap = new Map<String, dynamic>();
-      dataMap['id'] = ds.documentID;
-      dataMap['date'] = date;
-      dataMap['vote'] = 0;
-
-      await tx.set(ds.reference, dataMap);
-
-      return dataMap;
-    };
-
-    return Firestore.instance.runTransaction(createTransaction).then((mapData) {
-      return Lunch.fromMap(mapData);
-    }).catchError((error) {
-      print('error: $error');
-      return null;
-    });
-  }
 
   Widget createLunchForm(BuildContext context) {
+    final container = StateContainer.of(context);
     DateTime date;
     return new Container(
       padding: new EdgeInsets.all(20.0),
@@ -42,15 +18,6 @@ class LunchPage extends StatelessWidget {
         child: new ListView(
           padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
           children: <Widget>[
-            // TextFormField(
-            //   // autofocus: false,
-            //   validator: (value) {
-            //     if (value.isEmpty) {
-            //       return 'Please enter time';
-            //     }
-            //     lunchName = value;
-            //   },
-            // ),
             new DateTimePickerFormField(
               format: dateFormat,
               decoration: InputDecoration(labelText: 'Date/Time', labelStyle: TextStyle(color: Colors.white)),
@@ -58,25 +25,19 @@ class LunchPage extends StatelessWidget {
                 date = value;
               },
             ),
-            SizedBox(height: 16.0),
-
-            // new TextField(
-            //   decoration: const InputDecoration(
-            //     labelText: "Date",
-            //   ),
-            //   onChanged: (String value) {
-            //     lunchName = value;
-            //   },
-            // ),
+            SizedBox(height: 26.0),
             new FloatingActionButton.extended(
               label: Text("Finish"),
               icon: Icon(Icons.done),
               onPressed: () {
-                Future<Lunch> lunch = createLunch(date);
-                lunch.then((l) {
-                  Navigator.push(
-                    context, MaterialPageRoute(builder: (context) => ListPage(title: l.id)));
-                });
+                // Lunch lunch = new Lunch(date: date, vote: 0);
+                container.createLunch(date);
+                Navigator.push(context, 
+                  MaterialPageRoute(builder: (context) => ListPage()));
+                // lunch.then((l) {
+                //   Navigator.push(
+                //     context, MaterialPageRoute(builder: (context) => ListPage(lunch: l)));
+                // });
               },
             )
           ],
@@ -87,43 +48,11 @@ class LunchPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
+    final container = StateContainer.of(context);
     return Scaffold(
       backgroundColor: Color.fromRGBO(58, 66, 86, 1.0),
       body: createLunchForm(context),
-      // body: Column(
-      //   children: [
-      //     TextFormField(
-      //       validator: (value) {
-      //         if (value.isEmpty) {
-      //           return 'Please enter time';
-      //         }
-      //         lunch.name = value;
-      //       },
-      //     ),
-      //   ],
-      // ),
-      // floatingActionButton: new FloatingActionButton.extended(
-      //   label: Text("Finish"),
-      //   icon: Icon(Icons.done),
-      //   onPressed: () {
-      //     createLunch(lunch.name);
-      //   },
-      // ),
     );
-
-    // return new ListView.builder(
-    //   itemCount: lunch.rests.length,
-    //   itemBuilder: (BuildContext context, int index) {
-    //     return new Container(
-    //       padding: const EdgeInsets.all(20.0),
-    //       decoration: new BoxDecoration(
-    //         border: new Border.all(color: Colors.white),
-    //         borderRadius: BorderRadius.circular(5.0)),
-    //       child: makeCard(lunch.name, lunch.rests[index])
-    //     );
-    //   }
-    // );
   }
 }
 

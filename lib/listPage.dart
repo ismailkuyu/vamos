@@ -4,11 +4,12 @@ import 'package:vamos/LunchPage.dart';
 import 'package:intl/intl.dart';
 import 'package:vamos/service/FirestoreService.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vamos/stateContainer.dart';
 
 class ListPage extends StatefulWidget {
-  ListPage({Key key, this.title}) : super(key: key);
+  ListPage({Key key, this.lunch}) : super(key: key);
 
-  final String title;
+  final Lunch lunch;
 
   @override
   _ListPageState createState() {
@@ -17,60 +18,42 @@ class ListPage extends StatefulWidget {
 }
 
 class _ListPageState extends State<ListPage> {
+  static const Color defaultColor = Color.fromRGBO(64, 75, 96, .9);
+  static const Color orangeColor = Colors.orange;
 
-  static Lunch votedLunch;
-  
-  @override
-  void initState() {
-    FirestoreService.validateUser();
-    Future<Lunch> fLunch = FirestoreService.getInitialLunch();
-    fLunch.then((Lunch l) => votedLunch = l);
-    super.initState();
-  }
+  // static Lunch votedLunch;
 
-  toggleSelection(Lunch lunch) {
+  // @override
+  // void initState() {
+  //   super.initState();
+  // }
+
+  toggleSelection(Lunch newLunch) {
+    final container = StateContainer.of(context);
+    var prevSelectedLunch = container.selectedLunch;
     setState(() {
-      if (votedLunch == null) {
-        lunch.vote++;
-        FirestoreService.updateLunch(lunch);
-        votedLunch = lunch;
-      } else if (votedLunch.id != lunch.id) {
-        votedLunch.vote--;
-        FirestoreService.updateLunch(votedLunch);
-        lunch.vote++;
-        FirestoreService.updateLunch(lunch);
-        votedLunch = lunch;
-      } else if (votedLunch.id == lunch.id) {
-        lunch.vote--;
-        FirestoreService.updateLunch(lunch);
-        votedLunch = null;
+      if (prevSelectedLunch == null) {
+        container.increaseVote(newLunch);
+      } else if (prevSelectedLunch.id != newLunch.id) {
+        container.decreaseVote(prevSelectedLunch);
+        container.increaseVote(newLunch);
+      } else {
+        container.decreaseVote(newLunch);
       }
     });
+
+    container.changeSelectedLunch(newLunch);
   }
 
-
-
-
-  // Future<dynamic> updateUser(String lunchId) async {
-  //   String deviceId = await DeviceId.getID;
-  //   final TransactionHandler updateTransaction = (Transaction tx) async {
-  //     final DocumentSnapshot ds =
-  //         await tx.get(db.collection('user').document(deviceId));
-
-  //     ds.data.update
-
-  //     await tx.update(ds.reference, lunch.toMap());
-  //     return {'updated': true};
-  //   };
-
-  //   return Firestore.instance
-  //       .runTransaction(updateTransaction)
-  //       .then((result) => result['updated'])
-  //       .catchError((error) {
-  //     print('error: $error');
-  //     return false;
-  //   });
-  // }
+  Color paintTile(Lunch lunch) {
+    final container = StateContainer.of(context);
+    Color c = defaultColor;
+    if (container.selectedLunch != null &&
+        container.selectedLunch.id == lunch.id) {
+      c = orangeColor;
+    }
+    return c;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,44 +69,9 @@ class _ListPageState extends State<ListPage> {
       return n < 10 ? "0" + n.toString() : n.toString();
     }
 
-    Color getColor(Lunch lunch) {
-      Color c = Color.fromRGBO(64, 75, 96, .9);
-      if (votedLunch != null && votedLunch.id == lunch.id) {
-        c = Colors.orange;
-      }
-      return c;
-    }
-
-    // updateSelection(Lunch lunch) {
-    //   if (votedLunch == null) {
-    //     lunch.vote++;
-    //     updateLunch(lunch);
-    //     votedLunch = lunch;
-    //   } else if (votedLunch.id != lunch.id) {
-    //     votedLunch.vote--;
-    //     updateLunch(votedLunch);
-    //     lunch.vote++;
-    //     updateLunch(lunch);
-    //     votedLunch = lunch;
-    //   } else if (votedLunch.id == lunch.id) {
-    //     lunch.vote--;
-    //     updateLunch(lunch);
-    //     votedLunch = null;
-    //   }
-    // }
-
-    bool isSelected(Lunch lunch) {
-      if (votedLunch != null && votedLunch.id == lunch.id) {
-        return true;
-      } else {
-        return false;
-      }
-    }
-
     Widget _buildListItem(BuildContext context, DocumentSnapshot data) {
       final lunch = Lunch.fromSnapshot(data);
       DateTime date = lunch.date;
-
       return Padding(
         key: ValueKey(lunch.date),
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -131,52 +79,24 @@ class _ListPageState extends State<ListPage> {
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey),
             borderRadius: BorderRadius.circular(5.0),
-            color: getColor(lunch),
+            color: paintTile(lunch),
           ),
           child: ListTile(
-            selected: isSelected(lunch),
-            title:
-                Text(getFormatted(date.hour) + ":" + getFormatted(date.minute),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    )),
-            trailing: Text("Votes: " + lunch.vote.toString(),
-                style: TextStyle(
-                  color: Colors.white,
-                )),
-            onTap: () => toggleSelection(lunch),
-            //   Navigator.push(
-            //       context,
-            //       MaterialPageRoute(
-            //           builder: (context) => DetailPage(lunch: lunch)));
-            // }
-
-            // subtitle: getRests(lunch.rests),
-            // subtitle: makeList(lunch.rests),
-            // children: getRests(lunch.rests)
-            // children: <Widget>[
-            // Expanded(
-            //     flex: 1,
-            //     child: Container(
-            //       // tag: 'hero',
-            //       child: LinearProgressIndicator(
-            //           backgroundColor: Color.fromRGBO(209, 224, 224, 0.2),
-            //           value: 1,
-            //           valueColor: AlwaysStoppedAnimation(Colors.green)),
-            //     )),
-            // Expanded(
-            //   flex: 4,
-            //   child: Padding(
-            //       padding: EdgeInsets.only(left: 10.0),
-            //       child: Text(lunch.name.toString(),
-            //           style: TextStyle(color: Colors.white))),
-            // )
-            // ],
-          ),
-          // trailing: Text(lunch.rests.toString()),
-          //   onTap: () => print(lunch),
-          // ),
+              title: Text(
+                  getFormatted(date.hour) + ":" + getFormatted(date.minute),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  )),
+              trailing: Text("Votes: " + lunch.vote.toString(),
+                  style: TextStyle(
+                    color: Colors.white,
+                  )),
+              onTap: () {
+                // setState(() {
+                toggleSelection(lunch);
+                // });
+              }),
         ),
       );
     }
@@ -202,34 +122,6 @@ class _ListPageState extends State<ListPage> {
       );
     }
 
-    // final makeBottom = Container(
-    //   height: 55.0,
-    //   child: BottomAppBar(
-    //     color: Color.fromRGBO(58, 66, 86, 1.0),
-    //     child: Row(
-    //       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-    //       children: <Widget>[
-    //         IconButton(
-    //           icon: Icon(Icons.home, color: Colors.white),
-    //           onPressed: () {},
-    //         ),
-    //         IconButton(
-    //           icon: Icon(Icons.blur_on, color: Colors.white),
-    //           onPressed: () {},
-    //         ),
-    //         IconButton(
-    //           icon: Icon(Icons.hotel, color: Colors.white),
-    //           onPressed: () {},
-    //         ),
-    //         IconButton(
-    //           icon: Icon(Icons.account_box, color: Colors.white),
-    //           onPressed: () {},
-    //         )
-    //       ],
-    //     ),
-    //   ),
-    // );
-
     return Scaffold(
       backgroundColor: Color.fromRGBO(58, 66, 86, 1.0),
       appBar: topAppBar,
@@ -241,8 +133,10 @@ class _ListPageState extends State<ListPage> {
               context, MaterialPageRoute(builder: (context) => LunchPage()));
         },
         icon: Icon(Icons.add),
+
         label: Text("Lunch"),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       // bottomNavigationBar: makeBottom,
     );
   }
