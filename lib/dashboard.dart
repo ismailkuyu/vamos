@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vamos/listPage.dart';
-import 'package:vamos/model/lunch.dart';
 import 'package:vamos/service/FirestoreService.dart';
+import 'package:vamos/stateContainer.dart';
 
 class Dashboard extends StatefulWidget {
   @override
@@ -9,10 +9,18 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  
+
+  FirestoreService fs;
+
+  // @override
+  //   void initState() {
+  //     super.initState();
+  //   }
 
   @override
   Widget build(BuildContext context) {
+    final container = StateContainer.of(context);
+    container.handleStates();
     return Scaffold(
       appBar: AppBar(
         title: Text("VAMOS!"),
@@ -48,16 +56,13 @@ class _DashboardState extends State<Dashboard> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) {
-                  String lunchId;
-                  Future<Lunch> fLunch = FirestoreService.getInitialLunch();
-                  fLunch.then((Lunch l) {
-                    if(l != null){
-                      lunchId = l.id;
-                    } else{
-                      lunchId = "not selected";
-                    }
-                    });
-                  return ListPage(title: lunchId);
+                  // Lunch selectedLunch;
+                  // Future<Lunch> fLunch = FirestoreService.getInitialLunch();
+                  // fLunch.then((lunch) {
+                  //   selectedLunch = lunch;
+                  // });
+                  // return ListPage(lunch: selectedLunch);
+                  return ListPage();
                 }),
               );
             },
